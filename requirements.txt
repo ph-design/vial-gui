@@ -1,12 +1,9 @@
-altgraph>=0.17
 future>=0.18.2
 hidapi>=0.10.1
 keyboard>=0.13.5
-macholib>=1.14
-pefile>=2023.8.1
-PyInstaller>=5.0
 PyQt6>=6.0.0
 simpleeval>=1.0.0
 sip>=6.0.0
 pywin32>=303; sys_platform == 'win32'
 certifi
+nuitka>=2.8.8

@@ -217,28 +217,21 @@ if __name__ == '__main__':
                 exe_path = Path(sys.argv[0])
             except Exception:
                 exe_path = None
-            # If running as bundled exe, use the exe file itself as icon source
-            if exe_path and exe_path.suffix.lower() == '.exe' and exe_path.exists():
-                appctxt.app.setWindowIcon(QIcon(str(exe_path)))
-            else:
-                # Prefer get_resource() path so packaged builds can include the
-                # icon; fall back to repo locations if needed.
+            # Prefer using an explicit icon file bundled in resources if present
+            # (this works reliably both in development and in packaged builds).
+            try:
                 try:
                     icon_path = appctxt.get_resource('Icon.ico')
-                    if icon_path and Path(icon_path).exists():
-                        appctxt.app.setWindowIcon(QIcon(str(icon_path)))
-                    else:
-                        root = Path(__file__).resolve().parents[1]
-                        for name in ('icons/Icon.ico', 'icons/base/vial.ico'):
-                            p = root / name
-                            try:
-                                if p.exists():
-                                    appctxt.app.setWindowIcon(QIcon(str(p)))
-                                    break
-                            except Exception:
-                                continue
                 except Exception:
-                    # last-resort fallback: try repo locations
+                    icon_path = None
+
+                if icon_path and Path(icon_path).exists():
+                    appctxt.app.setWindowIcon(QIcon(str(icon_path)))
+                elif exe_path and exe_path.suffix.lower() == '.exe' and exe_path.exists():
+                    # Fallback: use the running exe's embedded icon if available
+                    appctxt.app.setWindowIcon(QIcon(str(exe_path)))
+                else:
+                    # Last-resort fallback: repository icon locations
                     root = Path(__file__).resolve().parents[1]
                     for name in ('icons/Icon.ico', 'icons/base/vial.ico'):
                         p = root / name
@@ -248,6 +241,9 @@ if __name__ == '__main__':
                                 break
                         except Exception:
                             continue
+            except Exception:
+                # ignore icon errors
+                pass
         except Exception:
             pass
         # Defer main window creation so the event loop can run and the
