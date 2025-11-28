@@ -2,9 +2,9 @@
 import json
 from collections import defaultdict
 
-from PyQt5 import QtCore
-from PyQt5.QtCore import pyqtSignal, QObject
-from PyQt5.QtWidgets import QVBoxLayout, QCheckBox, QGridLayout, QLabel, QWidget, QSizePolicy, QTabWidget, QSpinBox, \
+from PyQt6 import QtCore
+from PyQt6.QtCore import pyqtSignal, QObject
+from PyQt6.QtWidgets import QVBoxLayout, QCheckBox, QGridLayout, QLabel, QWidget, QSizePolicy, QTabWidget, QSpinBox, \
     QHBoxLayout, QPushButton, QMessageBox
 
 from editor.basic_editor import BasicEditor
@@ -105,12 +105,15 @@ class QmkSettings(BasicEditor):
         buttons = QHBoxLayout()
         buttons.addStretch()
         self.btn_save = QPushButton(tr("QmkSettings", "Save"))
+        self.btn_save.setMinimumSize(100, 36)
         self.btn_save.clicked.connect(self.save_settings)
         buttons.addWidget(self.btn_save)
         self.btn_undo = QPushButton(tr("QmkSettings", "Undo"))
+        self.btn_undo.setMinimumSize(100, 36)
         self.btn_undo.clicked.connect(self.reload_settings)
         buttons.addWidget(self.btn_undo)
         btn_reset = QPushButton(tr("QmkSettings", "Reset"))
+        btn_reset.setMinimumSize(100, 36)
         btn_reset.clicked.connect(self.reset_settings)
         buttons.addWidget(btn_reset)
         self.addLayout(buttons)
@@ -160,12 +163,12 @@ class QmkSettings(BasicEditor):
                 continue
 
             w = QWidget()
-            w.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
+            w.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
             container = QGridLayout()
             w.setLayout(container)
             l = QVBoxLayout()
             l.addWidget(w)
-            l.setAlignment(w, QtCore.Qt.AlignHCenter)
+            l.setAlignment(w, QtCore.Qt.AlignmentFlag.AlignHCenter)
             w2 = QWidget()
             w2.setLayout(l)
             self.misc_widgets += [w, w2]

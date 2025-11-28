@@ -3,9 +3,10 @@ import logging
 import platform
 from json import JSONDecodeError
 
-from PyQt5.QtCore import Qt, QSettings, QStandardPaths, QTimer, QRect, QT_VERSION_STR
-from PyQt5.QtWidgets import QWidget, QComboBox, QToolButton, QHBoxLayout, QVBoxLayout, QMainWindow, QAction, qApp, \
-    QFileDialog, QDialog, QTabWidget, QActionGroup, QMessageBox, QLabel
+from PyQt6.QtCore import Qt, QSettings, QStandardPaths, QTimer, QRect, QT_VERSION_STR
+from PyQt6.QtGui import QAction, QActionGroup
+from PyQt6.QtWidgets import QWidget, QComboBox, QToolButton, QHBoxLayout, QVBoxLayout, QMainWindow, QApplication, \
+    QFileDialog, QDialog, QTabWidget, QMessageBox, QLabel
 
 import os
 import sys
@@ -50,10 +51,11 @@ class MainWindow(QMainWindow):
             self.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
 
         _pos = self.settings.value("pos", None)
-        # NOTE: QDesktopWidget is obsolete, but QApplication.screenAt only usable in Qt 5.10+
-        if _pos and qApp.desktop().geometry().contains(QRect(_pos, self.size())):
-        #if _pos and qApp.screenAt(_pos) and qApp.screenAt(_pos + (self.rect().bottomRight())):
-            self.move(self.settings.value("pos"))
+        # In PyQt6, qApp.desktop() is replaced with screen handling
+        if _pos:
+            screen_rect = QApplication.instance().primaryScreen().geometry()
+            if screen_rect.contains(QRect(_pos, self.size())):
+                self.move(self.settings.value("pos"))
 
         if self.settings.value("maximized", False, bool):
             self.showMaximized()
@@ -64,7 +66,7 @@ class MainWindow(QMainWindow):
         self.combobox_devices.currentIndexChanged.connect(self.on_device_selected)
 
         self.btn_refresh_devices = QToolButton()
-        self.btn_refresh_devices.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        self.btn_refresh_devices.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         self.btn_refresh_devices.setText(tr("MainWindow", "Refresh"))
         self.btn_refresh_devices.clicked.connect(self.on_click_refresh)
 
@@ -107,14 +109,14 @@ class MainWindow(QMainWindow):
                           'Follow the instructions linked below:<br>' \
                           '<a href="https://get.vial.today/manual/linux-udev.html">https://get.vial.today/manual/linux-udev.html</a>'
         self.lbl_no_devices = QLabel(tr("MainWindow", no_devices))
-        self.lbl_no_devices.setTextFormat(Qt.RichText)
-        self.lbl_no_devices.setAlignment(Qt.AlignCenter)
+        self.lbl_no_devices.setTextFormat(Qt.TextFormat.RichText)
+        self.lbl_no_devices.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         layout = QVBoxLayout()
         layout.addLayout(layout_combobox)
         layout.addWidget(self.tabs, 1)
         layout.addWidget(self.lbl_no_devices)
-        layout.setAlignment(self.lbl_no_devices, Qt.AlignHCenter)
+        layout.setAlignment(self.lbl_no_devices, Qt.AlignmentFlag.AlignHCenter)
         self.tray_keycodes = TabbedKeycodes()
         self.tray_keycodes.make_tray()
         layout.addWidget(self.tray_keycodes, 1)
@@ -124,12 +126,13 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(w)
 
         self.init_menu()
+        self.apply_stylesheet()
 
         self.autorefresh = Autorefresh()
         self.autorefresh.devices_updated.connect(self.on_devices_updated)
 
         # cache for via definition files
-        self.cache_path = QStandardPaths.writableLocation(QStandardPaths.CacheLocation)
+        self.cache_path = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.CacheLocation)
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
 
@@ -260,7 +263,7 @@ class MainWindow(QMainWindow):
             dialog.setDefaultSuffix("vil")
             dialog.setAcceptMode(QFileDialog.AcceptOpen)
             dialog.setNameFilters(["Vial layout (*.vil)"])
-            if dialog.exec_() == QDialog.Accepted:
+            if dialog.exec() == QDialog.Accepted:
                 with open(dialog.selectedFiles()[0], "rb") as inf:
                     data = inf.read()
                 self.keymap_editor.restore_layout(data)
@@ -278,7 +281,7 @@ class MainWindow(QMainWindow):
             dialog.setDefaultSuffix("vil")
             dialog.setAcceptMode(QFileDialog.AcceptSave)
             dialog.setNameFilters(["Vial layout (*.vil)"])
-            if dialog.exec_() == QDialog.Accepted:
+            if dialog.exec() == QDialog.Accepted:
                 with open(dialog.selectedFiles()[0], "wb") as outf:
                     outf.write(self.keymap_editor.save_layout())
 
@@ -365,7 +368,7 @@ class MainWindow(QMainWindow):
         dialog.setDefaultSuffix("json")
         dialog.setAcceptMode(QFileDialog.AcceptOpen)
         dialog.setNameFilters(["VIA layout JSON (*.json)"])
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.Accepted:
             with open(dialog.selectedFiles()[0], "rb") as inf:
                 data = inf.read()
             self.autorefresh.sideload_via_json(data)
@@ -375,7 +378,7 @@ class MainWindow(QMainWindow):
         dialog.setDefaultSuffix("json")
         dialog.setAcceptMode(QFileDialog.AcceptOpen)
         dialog.setNameFilters(["VIA layout JSON (*.json)"])
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.Accepted:
             with open(dialog.selectedFiles()[0], "rb") as inf:
                 data = inf.read()
             self.autorefresh.load_dummy(data)
@@ -421,7 +424,7 @@ class MainWindow(QMainWindow):
         self.settings.setValue("theme", theme)
         msg = QMessageBox()
         msg.setText(tr("MainWindow", "In order to fully apply the theme you should restart the application."))
-        msg.exec_()
+        msg.exec()
 
     def on_tab_changed(self, index):
         TabbedKeycodes.close_tray()
@@ -442,7 +445,7 @@ class MainWindow(QMainWindow):
         text = 'Vial {}<br><br>Python {}<br>Qt {}<br><br>' \
                'Licensed under the terms of the<br>GNU General Public License (version 2 or later)<br><br>' \
                '<a href="https://get.vial.today/">https://get.vial.today/</a>' \
-               .format(qApp.applicationVersion(),
+               .format(QApplication.instance().applicationVersion(),
                        platform.python_version(), QT_VERSION_STR)
 
         if sys.platform == "emscripten":
@@ -458,6 +461,584 @@ class MainWindow(QMainWindow):
         self.about_dialog = AboutKeyboard(self.autorefresh.current_device)
         self.about_dialog.setModal(True)
         self.about_dialog.show()
+
+    def apply_stylesheet(self):
+        """应用样式表以增强UI层次感和美观度，包括平滑滚动"""
+        # 从主题获取颜色
+        window_bg = themes.Theme.window_color()
+        base_bg = themes.Theme.base_color()
+        button_bg = themes.Theme.button_color()
+        text_color = themes.Theme.text_color()
+        button_text = themes.Theme.button_text_color()
+        highlight = themes.Theme.highlight_color()
+        link = themes.Theme.link_color()
+        border = themes.Theme.border_color()
+        alt_base = themes.Theme.alternate_base_color()
+        mid = themes.Theme.mid_color()
+        midlight = themes.Theme.midlight_color()
+        
+        # 根据主题类型调整一些特殊颜色
+        if themes.Theme.is_dark_theme():
+            hover_bg = "#30363d"
+            hover_border = "#58a6ff"
+            focus_bg = "#1c2128"
+            disabled_text = "#6e7681"
+            separator_color = "#30363d"
+            tab_text_inactive = "#8b949e"
+        else:
+            hover_bg = "#e8e8e8"
+            hover_border = "#0052cc"
+            focus_bg = "#f0f0f0"
+            disabled_text = "#999999"
+            separator_color = "#d5d5d5"
+            tab_text_inactive = "#666666"
+        
+        # 启用平滑滚动
+        from PyQt6.QtWidgets import QScrollArea
+        
+        scroll_style = f"""
+            QScrollArea {{
+                border: none;
+            }}
+            QScrollBar:vertical {{
+                background-color: {window_bg};
+                width: 12px;
+                border: none;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: {border};
+                border-radius: 6px;
+                min-height: 20px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background-color: {midlight};
+            }}
+            QScrollBar:horizontal {{
+                background-color: {window_bg};
+                height: 12px;
+                border: none;
+            }}
+            QScrollBar::handle:horizontal {{
+                background-color: {border};
+                border-radius: 6px;
+                min-width: 20px;
+            }}
+            QScrollBar::handle:horizontal:hover {{
+                background-color: {midlight};
+            }}
+        """
+        
+        # 遍历所有 QScrollArea 并启用平滑滚动
+        for widget in self.findChildren(QScrollArea):
+            widget.setStyleSheet(scroll_style)
+        
+        stylesheet = f"""
+        QMainWindow {{
+            background-color: {window_bg};
+        }}
+        
+        QComboBox {{
+            background-color: {base_bg};
+            color: {text_color};
+            border: 1px solid {border};
+            border-radius: 4px;
+            padding: 5px;
+            font-size: 11px;
+        }}
+        
+        QComboBox::drop-down {{
+            border: none;
+            width: 20px;
+        }}
+        
+        QToolButton {{
+            background-color: {button_bg};
+            color: {button_text};
+            border: 1px solid {border};
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-size: 11px;
+            font-weight: 500;
+        }}
+        
+        QToolButton:hover {{
+            background-color: {hover_bg};
+            border: 1px solid {hover_border};
+        }}
+        
+        QToolButton:pressed {{
+            background-color: {highlight};
+            color: #ffffff;
+        }}
+        
+        QPushButton {{
+            background-color: {button_bg};
+            color: {button_text};
+            border: 1px solid {border};
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }}
+        
+        QPushButton:hover {{
+            background-color: {hover_bg};
+            color: {button_text};
+            border: 1px solid {hover_border};
+        }}
+        
+        QPushButton:pressed {{
+            background-color: {highlight};
+            color: #ffffff;
+        }}
+        
+        QPushButton:focus {{
+            color: {button_text};
+            border: 2px solid {link};
+        }}
+        
+        QPushButton:disabled {{
+            color: {disabled_text};
+        }}
+        
+        QLabel {{
+            color: {text_color};
+        }}
+        
+        QTabWidget::pane {{
+            border: 1px solid {border};
+            background-color: {window_bg};
+        }}
+        
+        QTabBar::tab {{
+            background-color: {button_bg};
+            color: {tab_text_inactive};
+            border: 1px solid {border};
+            padding: 4px 12px;
+            border-radius: 4px 4px 0px 0px;
+            margin-right: 2px;
+            min-height: 24px;
+            font-size: 14px;
+            font-weight: 500;
+        }}
+        
+        QTabBar::tab:hover {{
+            background-color: {hover_bg};
+            color: {button_text};
+            border: 1px solid {midlight};
+        }}
+        
+        QTabBar::tab:selected {{
+            background-color: {alt_base};
+            color: {link};
+            border: 1px solid {border};
+            border-bottom: 2px solid {link};
+        }}
+        
+        QTabBar::scroller {{
+            width: 60px;
+            height: 24px;
+        }}
+        
+        QTabBar::left-arrow {{
+            background-color: {link};
+            width: 18px;
+            height: 18px;
+            margin: 0px 2px;
+        }}
+        
+        QTabBar::right-arrow {{
+            background-color: {link};
+            width: 18px;
+            height: 18px;
+            margin: 0px 2px;
+        }}
+        
+        QLineEdit {{
+            background-color: {base_bg};
+            color: {text_color};
+            border: 1px solid {border};
+            border-radius: 4px;
+            padding: 5px;
+            font-size: 11px;
+            selection-background-color: {highlight};
+        }}
+        
+        QLineEdit:focus {{
+            border: 2px solid {link};
+            background-color: {focus_bg};
+        }}
+        
+        QTextEdit {{
+            background-color: {base_bg};
+            color: {text_color};
+            border: 1px solid {border};
+            border-radius: 4px;
+            padding: 5px;
+            font-size: 11px;
+            selection-background-color: {highlight};
+        }}
+        
+        QTextEdit:focus {{
+            border: 2px solid {link};
+            background-color: {focus_bg};
+        }}
+        
+        QPlainTextEdit {{
+            background-color: {base_bg};
+            color: {text_color};
+            border: 1px solid {border};
+            border-radius: 4px;
+            padding: 5px;
+            font-size: 11px;
+            selection-background-color: {highlight};
+        }}
+        
+        QPlainTextEdit:focus {{
+            border: 2px solid {link};
+            background-color: {focus_bg};
+        }}
+        
+        QScrollBar:vertical {{
+            background-color: {window_bg};
+            width: 12px;
+            border-radius: 6px;
+        }}
+        
+        QScrollBar::handle:vertical {{
+            background-color: {border};
+            border-radius: 6px;
+            min-height: 20px;
+            margin: 0px 2px 0px 2px;
+        }}
+        
+        QScrollBar::handle:vertical:hover {{
+            background-color: {midlight};
+        }}
+        
+        QScrollBar:horizontal {{
+            background-color: {window_bg};
+            height: 12px;
+            border-radius: 6px;
+        }}
+        
+        QScrollBar::handle:horizontal {{
+            background-color: {border};
+            border-radius: 6px;
+            min-width: 20px;
+            margin: 2px 0px 2px 0px;
+        }}
+        
+        QScrollBar::handle:horizontal:hover {{
+            background-color: {midlight};
+        }}
+        
+        QScrollBar::add-line, QScrollBar::sub-line {{
+            background: none;
+            border: none;
+        }}
+        
+        QMenuBar {{
+            background-color: {base_bg};
+            color: {button_text};
+            border-bottom: 1px solid {border};
+            padding: 4px 0px;
+        }}
+        
+        QMenuBar::item {{
+            padding: 4px 12px;
+            margin: 2px 0px;
+            border-radius: 4px;
+            border: 1px solid transparent;
+            background-color: transparent;
+        }}
+        
+        QMenuBar::item:selected {{
+            background-color: {hover_bg};
+            padding: 4px 12px;
+            margin: 2px 0px;
+            border-radius: 4px;
+            border: 1px solid transparent;
+            font-size: 11px;
+        }}
+        
+        QMenu {{
+            background-color: {base_bg};
+            color: {button_text};
+            border: 1px solid {border};
+            border-radius: 4px;
+        }}
+        
+        QMenu::item {{
+            padding: 4px 8px;
+            margin: 1px 0px;
+            border-radius: 2px;
+            border: 1px solid transparent;
+            background-color: transparent;
+        }}
+        
+        QMenu::item:selected {{
+            background-color: {highlight};
+            color: #ffffff;
+            border-radius: 2px;
+            padding: 4px 8px;
+            margin: 1px 0px;
+            border: 1px solid transparent;
+        }}
+        
+        QMenu::separator {{
+            background-color: {separator_color};
+            height: 1px;
+            margin: 4px 0px;
+        }}
+        
+        QMessageBox QLabel {{
+            color: {text_color};
+        }}
+        
+        QMessageBox QDialogButtonBox QPushButton {{
+            min-width: 70px;
+        }}
+        
+        QCheckBox {{
+            color: {button_text};
+            spacing: 5px;
+        }}
+        
+        QCheckBox::indicator {{
+            width: 16px;
+            height: 16px;
+        }}
+        
+        QCheckBox::indicator:unchecked {{
+            background-color: {base_bg};
+            border: 1px solid {border};
+            border-radius: 3px;
+        }}
+        
+        QCheckBox::indicator:unchecked:hover {{
+            border: 1px solid {link};
+            background-color: {focus_bg};
+        }}
+        
+        QCheckBox::indicator:checked {{
+            background-color: {highlight};
+            border: 1px solid {highlight};
+            border-radius: 3px;
+        }}
+        
+        QCheckBox::indicator:checked:hover {{
+            background-color: {link};
+            border: 1px solid {link};
+        }}
+        
+        QRadioButton {{
+            color: {button_text};
+            spacing: 5px;
+        }}
+        
+        QRadioButton::indicator {{
+            width: 16px;
+            height: 16px;
+        }}
+        
+        QRadioButton::indicator:unchecked {{
+            background-color: {base_bg};
+            border: 1px solid {border};
+            border-radius: 8px;
+        }}
+        
+        QRadioButton::indicator:unchecked:hover {{
+            border: 1px solid {link};
+            background-color: {focus_bg};
+        }}
+        
+        QRadioButton::indicator:checked {{
+            background-color: {highlight};
+            border: 1px solid {highlight};
+            border-radius: 8px;
+        }}
+        
+        QGroupBox {{
+            color: {button_text};
+            border: 1px solid {border};
+            border-radius: 4px;
+            margin-top: 12px;
+            padding-top: 12px;
+        }}
+        
+        QGroupBox::title {{
+            subcontrol-origin: margin;
+            left: 10px;
+            padding: 0 3px 0 3px;
+        }}
+        
+        QSpinBox, QDoubleSpinBox {{
+            background-color: {base_bg};
+            color: {text_color};
+            border: 1px solid {border};
+            border-radius: 4px;
+            padding: 5px;
+        }}
+        
+        QSpinBox:focus, QDoubleSpinBox:focus {{
+            border: 2px solid {link};
+            background-color: {focus_bg};
+        }}
+        
+        QSpinBox::up-button, QDoubleSpinBox::up-button {{
+            subcontrol-origin: border;
+            subcontrol-position: top right;
+            width: 16px;
+            border-left: 1px solid {border};
+            background-color: {button_bg};
+        }}
+        
+        QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover {{
+            background-color: {hover_bg};
+        }}
+        
+        QSpinBox::down-button, QDoubleSpinBox::down-button {{
+            subcontrol-origin: border;
+            subcontrol-position: bottom right;
+            width: 16px;
+            border-left: 1px solid {border};
+            border-top: 1px solid {border};
+            background-color: {button_bg};
+        }}
+        
+        QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {{
+            background-color: {hover_bg};
+        }}
+        
+        QSlider::groove:horizontal {{
+            background-color: {border};
+            height: 4px;
+            border-radius: 2px;
+        }}
+        
+        QSlider::handle:horizontal {{
+            background-color: {link};
+            width: 16px;
+            margin: -6px 0;
+            border-radius: 8px;
+        }}
+        
+        QSlider::handle:horizontal:hover {{
+            background-color: {hover_border};
+        }}
+        
+        QSlider::groove:vertical {{
+            background-color: {border};
+            width: 4px;
+            border-radius: 2px;
+        }}
+        
+        QSlider::handle:vertical {{
+            background-color: {link};
+            height: 16px;
+            margin: 0 -6px;
+            border-radius: 8px;
+        }}
+        
+        QSlider::handle:vertical:hover {{
+            background-color: {hover_border};
+        }}
+        
+        QProgressBar {{
+            background-color: {base_bg};
+            border: 1px solid {border};
+            border-radius: 4px;
+            padding: 2px;
+            height: 20px;
+        }}
+        
+        QProgressBar::chunk {{
+            background-color: {highlight};
+            border-radius: 2px;
+        }}
+        
+        QHeaderView::section {{
+            background-color: {button_bg};
+            color: {button_text};
+            padding: 5px;
+            border: 1px solid {border};
+            font-weight: 500;
+        }}
+        
+        QTableWidget, QTableView {{
+            background-color: {base_bg};
+            alternate-background-color: {alt_base};
+            gridline-color: {border};
+            border: 1px solid {border};
+        }}
+        
+        QTableWidget::item:selected {{
+            background-color: {highlight};
+            color: #ffffff;
+        }}
+        
+        QListWidget, QListView {{
+            background-color: {base_bg};
+            border: 1px solid {border};
+            outline: none;
+        }}
+        
+        QListWidget::item:hover, QListView::item:hover {{
+            background-color: {button_bg};
+        }}
+        
+        QListWidget::item:selected, QListView::item:selected {{
+            background-color: {highlight};
+            color: #ffffff;
+        }}
+        
+        QTreeWidget, QTreeView {{
+            background-color: {base_bg};
+            border: 1px solid {border};
+            outline: none;
+        }}
+        
+        QTreeView::item:hover {{
+            background-color: {button_bg};
+        }}
+        
+        QTreeView::item:selected {{
+            background-color: {highlight};
+            color: #ffffff;
+        }}
+        
+        QDockWidget {{
+            background-color: {window_bg};
+            color: {button_text};
+        }}
+        
+        QDockWidget::title {{
+            background-color: {button_bg};
+            border: 1px solid {border};
+            padding: 5px;
+            border-radius: 4px;
+        }}
+        
+        QStatusBar {{
+            background-color: {base_bg};
+            color: {button_text};
+            border-top: 1px solid {border};
+        }}
+        
+        QToolBar {{
+            background-color: {window_bg};
+            border: none;
+            spacing: 5px;
+            padding: 5px;
+        }}
+        
+        QToolBar::separator {{
+            background-color: {separator_color};
+            width: 1px;
+            margin: 0 5px;
+        }}
+        """
+        QApplication.instance().setStyleSheet(stylesheet)
 
     def closeEvent(self, e):
         self.settings.setValue("size", self.size())

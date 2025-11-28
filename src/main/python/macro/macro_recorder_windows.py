@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 import keyboard
 
-from PyQt5 import QtCore
-from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QApplication
+from PyQt6 import QtCore
+from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QApplication
 
 from keycodes.keycodes import Keycode
 from macro.macro_key import KeyUp, KeyDown
@@ -22,8 +22,11 @@ class WindowsRecorder(QWidget):
         self.old_get_event_names = keyboard._winkeyboard.get_event_names
         keyboard._winkeyboard.get_event_names = self.wrap_get_event_names
 
-        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint | QtCore.Qt.FramelessWindowHint)
 
+        flags = self.windowFlags()
+        flags |= QtCore.Qt.WindowType.WindowStaysOnTopHint
+        flags |= QtCore.Qt.WindowType.FramelessWindowHint
+        self.setWindowFlags(flags)
         layout = QVBoxLayout()
         btn = QPushButton(tr("MacroRecorder", "Stop recording"))
         btn.clicked.connect(self.on_stop)

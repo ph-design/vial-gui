@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 import sys
 
-from PyQt5.QtWidgets import QPushButton, QHBoxLayout, QWidget, QLabel
+from PyQt6.QtWidgets import QPushButton, QHBoxLayout, QWidget, QLabel
 
 from editor.basic_editor import BasicEditor
 from macro.macro_action import ActionText, ActionTap, ActionDown, ActionUp
@@ -54,8 +54,10 @@ class MacroRecorder(BasicEditor):
         buttons.addWidget(self.lbl_memory)
         buttons.addStretch()
         self.btn_save = QPushButton(tr("MacroRecorder", "Save"))
+        self.btn_save.setMinimumSize(100, 36)
         self.btn_save.clicked.connect(self.on_save)
         btn_revert = QPushButton(tr("MacroRecorder", "Revert"))
+        btn_revert.setMinimumSize(100, 36)
         btn_revert.clicked.connect(self.on_revert)
         buttons.addWidget(self.btn_save)
         buttons.addWidget(btn_revert)

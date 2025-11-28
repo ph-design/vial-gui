@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-from PyQt5.QtWidgets import QVBoxLayout, QPushButton, QWidget, QHBoxLayout, QLabel
-from PyQt5.QtCore import Qt, QTimer
+from PyQt6.QtWidgets import QVBoxLayout, QPushButton, QWidget, QHBoxLayout, QLabel
+from PyQt6.QtCore import Qt, QTimer
 
 import math
 
@@ -23,11 +23,20 @@ class MatrixTest(BasicEditor):
         self.keyboardWidget.set_enabled(False)
 
         self.unlock_btn = QPushButton("Unlock")
+        self.unlock_btn.setMinimumSize(120, 40)
+        unlock_font = self.unlock_btn.font()
+        unlock_font.setPointSize(11)
+        self.unlock_btn.setFont(unlock_font)
+        
         self.reset_btn = QPushButton("Reset")
+        self.reset_btn.setMinimumSize(120, 40)
+        reset_font = self.reset_btn.font()
+        reset_font.setPointSize(11)
+        self.reset_btn.setFont(reset_font)
 
         layout = QVBoxLayout()
         layout.addWidget(self.keyboardWidget)
-        layout.setAlignment(self.keyboardWidget, Qt.AlignCenter)
+        layout.setAlignment(self.keyboardWidget, Qt.AlignmentFlag.AlignCenter)
 
         self.addLayout(layout)
 

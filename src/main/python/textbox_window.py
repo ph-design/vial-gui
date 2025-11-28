@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QDialog, QDialogButtonBox, \
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QDialog, QDialogButtonBox, \
     QPlainTextEdit, QToolButton, QFileDialog, QWidget
 
 from util import tr
@@ -16,9 +16,8 @@ class TextboxWindow(QDialog):
         self.encoding = encoding
 
         self.control_held = False
-
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-
+        help_hint = Qt.WindowType.WindowContextHelpButtonHint
+        self.setWindowFlags(self.windowFlags() & ~help_hint)
         vbox = QVBoxLayout()
 
         self.macrotext = QPlainTextEdit()
@@ -27,22 +26,26 @@ class TextboxWindow(QDialog):
 
         self.btn_apply = QToolButton()
         self.btn_apply.setText(tr("TextboxWindow", "Apply"))
-        self.btn_apply.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        style_text_only = Qt.ToolButtonStyle.ToolButtonTextOnly
+        self.btn_apply.setToolButtonStyle(style_text_only)
         self.btn_apply.clicked.connect(self.on_apply)
 
         self.btn_cancel = QToolButton()
         self.btn_cancel.setText(tr("TextboxWindow", "Cancel"))
-        self.btn_cancel.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        style_text_only = Qt.ToolButtonStyle.ToolButtonTextOnly
+        self.btn_cancel.setToolButtonStyle(style_text_only)
         self.btn_cancel.clicked.connect(self.on_cancel)
 
         self.btn_copy = QToolButton()
         self.btn_copy.setText(tr("TextboxWindow", "Copy"))
-        self.btn_copy.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        style_text_only = Qt.ToolButtonStyle.ToolButtonTextOnly
+        self.btn_copy.setToolButtonStyle(style_text_only)
         self.btn_copy.clicked.connect(self.on_copy)
 
         self.btn_paste = QToolButton()
         self.btn_paste.setText(tr("TextboxWindow", "Paste"))
-        self.btn_paste.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        style_text_only = Qt.ToolButtonStyle.ToolButtonTextOnly
+        self.btn_paste.setToolButtonStyle(style_text_only)
         self.btn_paste.clicked.connect(self.on_paste)
 
         bottom_buttons = QHBoxLayout()
@@ -81,20 +84,20 @@ class TextboxWindow(QDialog):
     def on_export(self):
         dialog = QFileDialog()
         dialog.setDefaultSuffix(self.file_extension)
-        dialog.setAcceptMode(QFileDialog.AcceptSave)
+        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
         dialog.setNameFilters(["{} (*.{})".format(self.file_type, self.file_extension)])
 
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.Accepted:
             with open(dialog.selectedFiles()[0], "wb") as outf:
                 outf.write(self.macrotext.toPlainText().encode(self.encoding))
 
     def on_import(self):
         dialog = QFileDialog()
         dialog.setDefaultSuffix(self.file_extension)
-        dialog.setAcceptMode(QFileDialog.AcceptOpen)
+        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
         dialog.setNameFilters(["{} (*.{})".format(self.file_type, self.file_extension)])
 
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.Accepted:
             with open(dialog.selectedFiles()[0], "rb") as inf:
                 self.macrotext.setPlainText(inf.read().decode(self.encoding))
 
@@ -102,19 +105,19 @@ class TextboxWindow(QDialog):
         return self.macrotext.toPlainText()
 
     def keyPressEvent(self, ev):
-        if ev.key() == Qt.Key_Escape:
+        if ev.key() == Qt.Key.Escape:
             self.reject()
 
-        if ev.key() == Qt.Key_Control:
+        if ev.key() == Qt.Key.Control:
             self.control_held = True
 
         if self.control_held:
-            if ev.key() == Qt.Key_O:
+            if ev.key() == Qt.Key.O:
                 self.on_import()
 
-            if ev.key() == Qt.Key_S:
+            if ev.key() == Qt.Key.S:
                 self.on_export()
 
     def keyReleaseEvent(self, ev):
-        if ev.key() == Qt.Key_Control:
+        if ev.key() == Qt.Key.Control:
             self.control_held = False

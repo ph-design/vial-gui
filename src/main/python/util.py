@@ -6,9 +6,9 @@ import sys
 import time
 from logging.handlers import RotatingFileHandler
 
-from PyQt5.QtCore import QCoreApplication, QStandardPaths
-from PyQt5.QtGui import QPalette
-from PyQt5.QtWidgets import QApplication, QWidget, QScrollArea, QFrame
+from PyQt6.QtCore import QCoreApplication, QStandardPaths
+from PyQt6.QtGui import QPalette
+from PyQt6.QtWidgets import QApplication, QWidget, QScrollArea, QFrame
 
 from hidproxy import hid
 from keycodes.keycodes import Keycode
@@ -146,7 +146,7 @@ def pad_for_vibl(msg):
 
 def init_logger():
     logging.basicConfig(level=logging.INFO)
-    directory = QStandardPaths.writableLocation(QStandardPaths.AppLocalDataLocation)
+    directory = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
     pathlib.Path(directory).mkdir(parents=True, exist_ok=True)
     path = os.path.join(directory, "vial.log")
     handler = RotatingFileHandler(path, maxBytes=5 * 1024 * 1024, backupCount=5)
@@ -159,7 +159,7 @@ def make_scrollable(layout):
     w.setLayout(layout)
     w.setObjectName("w")
     scroll = QScrollArea()
-    scroll.setFrameShape(QFrame.NoFrame)
+    scroll.setFrameShape(QFrame.Shape.NoFrame)
     scroll.setStyleSheet("QScrollArea { background-color:transparent; }")
     w.setStyleSheet("#w { background-color:transparent; }")
     scroll.setWidgetResizable(True)

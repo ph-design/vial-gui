@@ -1,5 +1,5 @@
-from PyQt5.QtCore import QObject, pyqtSignal, Qt
-from PyQt5.QtWidgets import QLineEdit, QToolButton, QWidget, QSizePolicy, QSpinBox
+from PyQt6.QtCore import QObject, pyqtSignal, Qt
+from PyQt6.QtWidgets import QLineEdit, QToolButton, QWidget, QSizePolicy, QSpinBox
 
 from constants import KEY_SIZE_RATIO
 from tabbed_keycodes import TabbedKeycodes
@@ -15,7 +15,7 @@ class DeletableKeyWidget(KeyWidget):
 
     def keyReleaseEvent(self, ev):
         # remove this keycode from the sequence when delete is pressed
-        if ev.key() == Qt.Key_Delete:
+        if ev.key() == Qt.Key.Delete:
             self.set_keycode("KC_NO")
 
 
@@ -72,12 +72,12 @@ class ActionSequenceUI(BasicActionUI):
         self.btn_plus.setText("+")
         self.btn_plus.setFixedWidth(int(self.btn_plus.fontMetrics().height() * KEY_SIZE_RATIO))
         self.btn_plus.setFixedHeight(int(self.btn_plus.fontMetrics().height() * KEY_SIZE_RATIO))
-        self.btn_plus.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        self.btn_plus.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         self.btn_plus.clicked.connect(self.on_add)
 
         self.layout = FlowLayout()
         self.layout_container = QWidget()
-        self.layout_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+        self.layout_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         self.layout_container.setLayout(self.layout)
         self.widgets = []
         self.keycode_filter = None
@@ -163,7 +163,7 @@ class ActionDelayUI(BasicActionUI):
 
         self.layout = FlowLayout()
         self.layout_container = QWidget()
-        self.layout_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+        self.layout_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         self.layout_container.setLayout(self.layout)
 
         self.layout.addWidget(self.value)

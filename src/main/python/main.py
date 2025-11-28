@@ -7,16 +7,50 @@ if ssl.get_default_verify_paths().cafile is None:
     os.environ['SSL_CERT_FILE'] = certifi.where()
 
 import traceback
+import sys
 
-from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtCore import pyqtSignal
+from hidpi import setup_hidpi
+setup_hidpi()
 
-from fbs_runtime.application_context import cached_property
-from fbs_runtime.application_context.PyQt5 import ApplicationContext
+from PyQt6 import QtWidgets, QtCore
+from PyQt6.QtCore import pyqtSignal
+import json
+from pathlib import Path
+
+
+class LocalAppCtx:
+    def __init__(self):
+        # load build settings from src/build/settings/base.json
+        root = Path(__file__).resolve().parents[2]
+        settings_path = root / 'build' / 'settings' / 'base.json'
+        try:
+            with open(settings_path, 'r', encoding='utf-8') as inf:
+                self.build_settings = json.load(inf)
+        except Exception:
+            self.build_settings = {"app_name": "Vial", "version": "0.0.0"}
+
+        self._app = None
+
+    @property
+    def app(self):
+        if self._app is None:
+            self._app = QtWidgets.QApplication(sys.argv)
+            HiDPIInit.initialize()
+            self._app.setApplicationName(self.build_settings.get("app_name", "Vial"))
+            self._app.setOrganizationDomain("vial.today")
+            self._app.setApplicationVersion(self.build_settings.get("version", "0.0.0"))
+        return self._app
+
+    def get_resource(self, name):
+        # map resource requests to src/main/resources/base/<name>
+        root = Path(__file__).resolve().parents[1]
+        res = root / 'resources' / 'base' / name
+        return str(res)
 
 import sys
 
 from main_window import MainWindow
+from hidpi import HiDPIInit
 
 
 # http://timlehr.com/python-exception-hooks-with-qt-message-box/
@@ -27,7 +61,7 @@ def show_exception_box(log_msg):
     if QtWidgets.QApplication.instance() is not None:
         errorbox = QtWidgets.QMessageBox()
         errorbox.setText(log_msg)
-        errorbox.exec_()
+        errorbox.exec()
 
 
 class UncaughtHook(QtCore.QObject):
@@ -55,20 +89,6 @@ class UncaughtHook(QtCore.QObject):
             self._exception_caught.emit(log_msg)
         sys._excepthook(exc_type, exc_value, exc_traceback)
 
-class VialApplicationContext(ApplicationContext):
-    @cached_property
-    def app(self):
-        # Override the app definition in order to set WM_CLASS.
-        result = QtWidgets.QApplication(sys.argv)
-        result.setApplicationName(self.build_settings["app_name"])
-        result.setOrganizationDomain("vial.today")
-
-        #TODO: Qt sets applicationVersion on non-Linux platforms if the exe/pkg metadata is correctly configured.
-        # https://doc.qt.io/qt-5/qcoreapplication.html#applicationVersion-prop
-        # Verify it is, and only set manually on Linux.
-        #if sys.platform.startswith("linux"):
-        result.setApplicationVersion(self.build_settings["version"])
-        return result
 
 if __name__ == '__main__':
     if len(sys.argv) == 2 and sys.argv[1] == "--linux-recorder":
@@ -76,10 +96,11 @@ if __name__ == '__main__':
 
         linux_keystroke_recorder()
     else:
-        appctxt = VialApplicationContext()       # 1. Instantiate ApplicationContext
+        appctxt = LocalAppCtx()
         init_logger()
+        app = appctxt.app
         qt_exception_hook = UncaughtHook()
         window = MainWindow(appctxt)
         window.show()
-        exit_code = appctxt.app.exec_()      # 2. Invoke appctxt.app.exec_()
+        exit_code = appctxt.app.exec()
         sys.exit(exit_code)

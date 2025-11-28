@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtWidgets import QTabWidget, QWidget, QScrollArea, QApplication, QVBoxLayout
-from PyQt5.QtGui import QPalette
+from collections import deque
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QTabWidget, QWidget, QScrollArea, QApplication, QVBoxLayout
+from PyQt6.QtGui import QPalette
 
 from constants import KEYCODE_BTN_RATIO
 from widgets.display_keyboard import DisplayKeyboard
@@ -42,7 +43,7 @@ class AlternativeDisplay(QWidget):
             self.kb_display = DisplayKeyboard(kbdef)
             self.kb_display.keycode_changed.connect(self.keycode_changed)
             layout.addWidget(self.kb_display)
-            layout.setAlignment(self.kb_display, Qt.AlignHCenter)
+            layout.setAlignment(self.kb_display, Qt.AlignmentFlag.AlignHCenter)
         layout.addLayout(self.key_layout)
         self.setLayout(layout)
 
@@ -96,8 +97,8 @@ class Tab(QScrollArea):
             self.layout.addWidget(alt)
             self.alternatives.append(alt)
 
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setWidgetResizable(True)
 
         w = QWidget()

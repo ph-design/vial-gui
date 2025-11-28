@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QWidget
-from PyQt5.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
+from PyQt6.QtCore import pyqtSignal
 
 
 class EditorContainer(QWidget):
@@ -10,7 +10,6 @@ class EditorContainer(QWidget):
         super().__init__()
 
         self.editor = editor
-
         self.setLayout(editor)
         self.clicked.connect(editor.on_container_clicked)
 
