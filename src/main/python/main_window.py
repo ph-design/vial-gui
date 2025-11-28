@@ -4,9 +4,9 @@ import platform
 from json import JSONDecodeError
 
 from PyQt6.QtCore import Qt, QSettings, QStandardPaths, QTimer, QRect, QT_VERSION_STR
-from PyQt6.QtGui import QAction, QActionGroup
+from PyQt6.QtGui import QAction, QActionGroup, QMovie
 from PyQt6.QtWidgets import QWidget, QComboBox, QToolButton, QHBoxLayout, QVBoxLayout, QMainWindow, QApplication, \
-    QFileDialog, QDialog, QTabWidget, QMessageBox, QLabel
+    QFileDialog, QDialog, QTabWidget, QMessageBox, QLabel, QProgressBar
 
 import os
 import sys
@@ -36,16 +36,96 @@ from i18n import I18n
 
 import themes
 
+#splash scren
+class LoadingDialog(QDialog):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(tr("LoadingDialog", "Loading"))
+        self.setModal(True)
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowTitleHint | Qt.WindowType.CustomizeWindowHint)
+        
+        layout = QVBoxLayout()
+        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
+        
+        self.label = QLabel(tr("LoadingDialog", "Connecting to keyboard..."))
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        font = self.label.font()
+        font.setPointSize(11)
+        font.setBold(True)
+        self.label.setFont(font)
+        layout.addWidget(self.label)
+        
+        self.progress = QProgressBar()
+        self.progress.setMinimum(0)
+        self.progress.setMaximum(0)
+        self.progress.setTextVisible(False)
+        self.progress.setMinimumHeight(8)
+        layout.addWidget(self.progress)
+        
+        self.hint_label = QLabel(tr("LoadingDialog", "Please wait..."))
+        self.hint_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hint_font = self.hint_label.font()
+        hint_font.setPointSize(9)
+        self.hint_label.setFont(hint_font)
+        layout.addWidget(self.hint_label)
+        
+        self.setLayout(layout)
+        self.setFixedSize(350, 140)
+        
+        self.apply_style()
+
+    def apply_style(self):
+        window_bg = themes.Theme.window_color()
+        text_color = themes.Theme.text_color()
+        highlight = themes.Theme.highlight_color()
+        border = themes.Theme.border_color()
+        
+        style = f"""
+        QDialog {{
+            background-color: {window_bg};
+            border: 1px solid {border};
+            border-radius: 8px;
+        }}
+        QLabel {{
+            color: {text_color};
+            background-color: transparent;
+        }}
+        QProgressBar {{
+            background-color: {border};
+            border: none;
+            border-radius: 4px;
+            text-align: center;
+        }}
+        QProgressBar::chunk {{
+            background-color: {highlight};
+            border-radius: 4px;
+        }}
+        """
+        self.setStyleSheet(style)
+
+    def keyPressEvent(self, ev):
+        pass
+
 
 class MainWindow(QMainWindow):
 
     def __init__(self, appctx):
         super().__init__()
         self.appctx = appctx
+        try:
+            app = QApplication.instance()
+            splash = getattr(app, 'splash', None)
+            if splash:
+                splash.message(tr("MainWindow", "Initializing UI..."))
+                app.processEvents()
+        except Exception:
+            splash = None
 
         self.ui_lock_count = 0
 
-        self.settings = QSettings("Vial", "Vial")
+        self.settings = QSettings("vial-next", "vial-next")
         if self.settings.value("size", None):
             self.resize(self.settings.value("size"))
         else:
@@ -76,6 +156,13 @@ class MainWindow(QMainWindow):
         if sys.platform != "emscripten":
             layout_combobox.addWidget(self.btn_refresh_devices)
 
+        try:
+            if splash:
+                splash.message(tr("MainWindow", "Creating editors..."))
+                app.processEvents()
+        except Exception:
+            pass
+
         self.layout_editor = LayoutEditor()
         self.keymap_editor = KeymapEditor(self.layout_editor)
         self.firmware_flasher = FirmwareFlasher(self)
@@ -102,6 +189,14 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.tabs.currentChanged.connect(self.on_tab_changed)
         self.refresh_tabs()
+        try:
+            if splash:
+                splash.message(tr("MainWindow", "Building tabs..."))
+                app.processEvents()
+        except Exception:
+            pass
+
+        self.loading_dialog = None
 
         no_devices = 'No devices detected. Connect a Vial-compatible device and press "Refresh"<br>' \
                      'or select "File" → "Download VIA definitions" in order to enable support for VIA keyboards.'
@@ -129,26 +224,56 @@ class MainWindow(QMainWindow):
         self.init_menu()
         self.apply_stylesheet()
 
-        self.autorefresh = Autorefresh()
-        self.autorefresh.devices_updated.connect(self.on_devices_updated)
+        # Do not start device autorefresh thread immediately to avoid blocking
+        # UI startup. Start it shortly after the window is shown.
+        try:
+            if splash:
+                splash.message(tr("MainWindow", "Starting device backend..."))
+                app.processEvents()
+        except Exception:
+            pass
+        self.autorefresh = None
 
         # cache for via definition files
         self.cache_path = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.CacheLocation)
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
 
-        # check if the via defitions already exist
+        # check if the via defitions already exist (cache the data; will be
+        # loaded into the autorefresh thread when it starts)
+        self._cached_via_stack = None
         if os.path.isfile(os.path.join(self.cache_path, "via_keyboards.json")):
             with open(os.path.join(self.cache_path, "via_keyboards.json")) as vf:
                 data = vf.read()
             try:
-                self.autorefresh.load_via_stack(data)
-            except JSONDecodeError as e:
-                # the saved file is invalid - just ignore this
-                logging.warning("Failed to parse stored via_keyboards.json: {}".format(e))
+                # store for later loading when autorefresh starts
+                self._cached_via_stack = data
+            except Exception as e:
+                logging.warning("Failed to read stored via_keyboards.json: {}".format(e))
 
-        # make sure initial state is valid
-        self.on_click_refresh()
+        # Delay starting autorefresh until after main window is shown to avoid
+        # blocking the UI during heavy device enumeration and initial updates.
+        QTimer.singleShot(100, self.start_autorefresh)
+
+    def start_autorefresh(self):
+        try:
+            self.autorefresh = Autorefresh()
+            self.autorefresh.devices_updated.connect(self.on_devices_updated)
+            # handle asynchronous device opens
+            if hasattr(self.autorefresh, 'device_opened'):
+                self.autorefresh.device_opened.connect(self.on_device_opened)
+
+            # If we cached VIA definitions, load them into the autorefresh thread
+            if self._cached_via_stack:
+                try:
+                    self.autorefresh.load_via_stack(self._cached_via_stack)
+                except JSONDecodeError as e:
+                    logging.warning("Failed to parse stored via_keyboards.json: {}".format(e))
+
+            # perform an initial refresh once autorefresh thread is running
+            self.on_click_refresh()
+        except Exception:
+            logging.exception("Failed to start autorefresh")
 
         if sys.platform == "emscripten":
             import vialglue
@@ -249,7 +374,7 @@ class MainWindow(QMainWindow):
                 self.language_group.addAction(act)
                 self.language_menu.addAction(act)
 
-        about_vial_act = QAction(tr("MenuAbout", "About Vial..."), self)
+        about_vial_act = QAction(tr("MenuAbout", "About vial-next..."), self)
         about_vial_act.triggered.connect(self.about_vial)
         self.about_keyboard_act = QAction("", self)
         self.about_keyboard_act.triggered.connect(self.about_keyboard)
@@ -274,9 +399,9 @@ class MainWindow(QMainWindow):
         else:
             dialog = QFileDialog()
             dialog.setDefaultSuffix("vil")
-            dialog.setAcceptMode(QFileDialog.AcceptOpen)
+            dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
             dialog.setNameFilters(["Vial layout (*.vil)"])
-            if dialog.exec() == QDialog.Accepted:
+            if dialog.exec() == QDialog.DialogCode.Accepted:
                 with open(dialog.selectedFiles()[0], "rb") as inf:
                     data = inf.read()
                 self.keymap_editor.restore_layout(data)
@@ -292,9 +417,9 @@ class MainWindow(QMainWindow):
         else:
             dialog = QFileDialog()
             dialog.setDefaultSuffix("vil")
-            dialog.setAcceptMode(QFileDialog.AcceptSave)
+            dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
             dialog.setNameFilters(["Vial layout (*.vil)"])
-            if dialog.exec() == QDialog.Accepted:
+            if dialog.exec() == QDialog.DialogCode.Accepted:
                 with open(dialog.selectedFiles()[0], "wb") as outf:
                     outf.write(self.keymap_editor.save_layout())
 
@@ -323,20 +448,62 @@ class MainWindow(QMainWindow):
             self.on_device_selected()
 
     def on_device_selected(self):
+        # Use async selection to avoid blocking UI while opening the device
+        if not self.autorefresh:
+            return
         try:
-            self.autorefresh.select_device(self.combobox_devices.currentIndex())
-        except ProtocolError:
+            self.lock_ui()
+            # 显示加载对话框
+            self.loading_dialog = LoadingDialog(self)
+            self.loading_dialog.show()
+            QApplication.processEvents()  # 确保对话框立即显示
+            
+            # call async selection; result will be handled in on_device_opened
+            self.autorefresh.select_device_async(self.combobox_devices.currentIndex())
+        except Exception:
+            logging.exception("Failed to select device asynchronously")
+            # 关闭加载对话框
+            if self.loading_dialog:
+                self.loading_dialog.close()
+                self.loading_dialog = None
             QMessageBox.warning(self, "", "Unsupported protocol version!\n"
                                           "Please download latest Vial from https://get.vial.today/")
+            try:
+                self.unlock_ui()
+            except Exception:
+                pass
 
-        if isinstance(self.autorefresh.current_device, VialKeyboard):
-            keyboard_id = self.autorefresh.current_device.keyboard.keyboard_id
-            if (keyboard_id in EXAMPLE_KEYBOARDS) or ((keyboard_id & 0xFFFFFFFFFFFFFF) == EXAMPLE_KEYBOARD_PREFIX):
-                QMessageBox.warning(self, "", "An example keyboard UID was detected.\n"
+    def on_device_opened(self, device):
+        """Called when an async device open completes."""
+        try:
+            if device is None:
+                # failed to open or cleared
+                return
+
+            # post-open checks and UI refresh
+            if isinstance(device, VialKeyboard):
+                keyboard_id = device.keyboard.keyboard_id
+                if (keyboard_id in EXAMPLE_KEYBOARDS) or ((keyboard_id & 0xFFFFFFFFFFFFFF) == EXAMPLE_KEYBOARD_PREFIX):
+                    QMessageBox.warning(self, "", "An example keyboard UID was detected.\n"
                                               "Please change your keyboard UID to be unique before you ship!")
 
-        self.rebuild()
-        self.refresh_tabs()
+            # 保持加载对话框显示，更新提示信息
+            if self.loading_dialog:
+                self.loading_dialog.label.setText(tr("LoadingDialog", "Loading keyboard layout..."))
+                QApplication.processEvents()
+            
+            self.rebuild()
+            self.refresh_tabs()
+        finally:
+            try:
+                # 在所有操作完成后才关闭加载对话框
+                if self.loading_dialog:
+                    self.loading_dialog.close()
+                    self.loading_dialog = None
+                
+                self.unlock_ui()
+            except Exception:
+                pass
 
     def rebuild(self):
         # don't show "Security" menu for bootloader mode, as the bootloader is inherently insecure
@@ -379,9 +546,9 @@ class MainWindow(QMainWindow):
     def on_sideload_json(self):
         dialog = QFileDialog()
         dialog.setDefaultSuffix("json")
-        dialog.setAcceptMode(QFileDialog.AcceptOpen)
+        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
         dialog.setNameFilters(["VIA layout JSON (*.json)"])
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             with open(dialog.selectedFiles()[0], "rb") as inf:
                 data = inf.read()
             self.autorefresh.sideload_via_json(data)
@@ -389,9 +556,9 @@ class MainWindow(QMainWindow):
     def on_load_dummy(self):
         dialog = QFileDialog()
         dialog.setDefaultSuffix("json")
-        dialog.setAcceptMode(QFileDialog.AcceptOpen)
+        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
         dialog.setNameFilters(["VIA layout JSON (*.json)"])
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             with open(dialog.selectedFiles()[0], "rb") as inf:
                 data = inf.read()
             self.autorefresh.load_dummy(data)
@@ -430,7 +597,7 @@ class MainWindow(QMainWindow):
         KeycodeDisplay.set_keymap_override(KEYMAPS[index][1])
 
     def get_theme(self):
-        return self.settings.value("theme", "Dark")
+        return self.settings.value("theme", "Phantom-dark")
 
     def set_theme(self, theme):
         themes.Theme.set_theme(theme)
@@ -460,10 +627,14 @@ class MainWindow(QMainWindow):
         self.current_tab = new_tab
 
     def about_vial(self):
-        title = "About Vial"
-        text = 'Vial {}<br><br>Python {}<br>Qt {}<br><br>' \
+        title = "About vial-next"
+        # 说明与原项目（Vial）的关系，并提供本仓库地址
+        text = 'vial-next {}<br><br>Python {}<br>Qt {}<br><br>' \
+               'This project is a fork/derivative of the original Vial GUI. ' \
+               'It contains local modifications and changes made under the terms of the original license.<br><br>' \
+               'Original project: <a href="https://get.vial.today/">https://get.vial.today/</a><br>' \
+               'This repository (vial-next): <a href="https://github.com/ph-design/vial-gui">https://github.com/ph-design/vial-gui</a><br><br>' \
                'Licensed under the terms of the<br>GNU General Public License (version 2 or later)<br><br>' \
-               '<a href="https://get.vial.today/">https://get.vial.today/</a>' \
                .format(QApplication.instance().applicationVersion(),
                        platform.python_version(), QT_VERSION_STR)
 
@@ -482,8 +653,6 @@ class MainWindow(QMainWindow):
         self.about_dialog.show()
 
     def apply_stylesheet(self):
-        """应用样式表以增强UI层次感和美观度，包括平滑滚动"""
-        # 从主题获取颜色
         window_bg = themes.Theme.window_color()
         base_bg = themes.Theme.base_color()
         button_bg = themes.Theme.button_color()
@@ -547,9 +716,8 @@ class MainWindow(QMainWindow):
             }}
         """
         
-        # 遍历所有 QScrollArea 并启用平滑滚动
-        for widget in self.findChildren(QScrollArea):
-            widget.setStyleSheet(scroll_style)
+        # QScrollArea/QScrollBar rules are included in the stylesheet below
+        # (avoid per-widget setStyleSheet calls which are expensive)
         
         stylesheet = f"""
         QMainWindow {{
@@ -1058,6 +1226,57 @@ class MainWindow(QMainWindow):
         }}
         """
         QApplication.instance().setStyleSheet(stylesheet)
+
+        # Enable smoother/per-pixel scrolling on item views and improve scroll step
+        try:
+            from PyQt6.QtWidgets import QAbstractItemView, QListWidget, QListView, QTreeView, QTreeWidget, QTableView, QTableWidget, QScrollArea
+            for w in QApplication.instance().allWidgets():
+                try:
+                    # item views: use per-pixel scrolling where supported
+                    if isinstance(w, (QListWidget, QListView, QTreeView, QTreeWidget, QTableView, QTableWidget)):
+                        try:
+                            w.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+                            w.setHorizontalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+                        except Exception:
+                            pass
+                        # increase single-step to make wheel/keyboard scrolling feel smoother
+                        try:
+                            v = w.verticalScrollBar()
+                            h = w.horizontalScrollBar()
+                            if v is not None:
+                                v.setSingleStep(8)
+                            if h is not None:
+                                h.setSingleStep(8)
+                        except Exception:
+                            pass
+                    # QScrollArea: tweak scrollbar single step to reduce jumpiness
+                    elif isinstance(w, QScrollArea):
+                        try:
+                            v = w.verticalScrollBar()
+                            h = w.horizontalScrollBar()
+                            if v is not None:
+                                v.setSingleStep(8)
+                            if h is not None:
+                                h.setSingleStep(8)
+                        except Exception:
+                            pass
+                    # enable QScroller on widgets with a viewport for kinetic/touch-style scrolling
+                    try:
+                        from PyQt6.QtWidgets import QScroller
+                        if hasattr(w, 'viewport'):
+                            try:
+                                vp = w.viewport()
+                                if vp is not None:
+                                    QScroller.grabGesture(vp, QScroller.GestureType.LeftMouseButtonGesture)
+                            except Exception:
+                                pass
+                    except Exception:
+                        # QScroller may not be available on all builds; ignore silently
+                        pass
+                except Exception:
+                    continue
+        except Exception:
+            pass
 
     def closeEvent(self, e):
         self.settings.setValue("size", self.size())

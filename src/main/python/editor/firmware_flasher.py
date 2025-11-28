@@ -181,7 +181,7 @@ class FirmwareFlasher(BasicEditor):
         dialog.setDefaultSuffix("vfw")
         dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
         dialog.setNameFilters(["Vial Firmware (*.vfw)"])
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             self.selected_firmware_path = dialog.selectedFiles()[0]
             self.txt_file_selector.setText(self.selected_firmware_path)
             self.log(tr("Flasher", "Firmware update package: {}").format(self.selected_firmware_path))

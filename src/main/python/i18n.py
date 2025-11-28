@@ -52,7 +52,7 @@ class I18n:
             "System": "跟随系统",
             
             # Menu About
-            "About Vial...": "关于 Vial...",
+            "About vial-next...": "关于 vial-next...",
             
             # MainWindow
             "Refresh": "刷新",
@@ -91,6 +91,12 @@ class I18n:
             "Save": "保存",
             "Undo": "撤销",
             "Revert": "还原",
+            
+            # LoadingDialog
+            "Loading": "加载中",
+            "Connecting to keyboard...": "正在连接键盘...",
+            "Loading keyboard layout...": "正在加载键盘布局...",
+            "Please wait...": "请稍候...",
             
             # Unlocker
             "In order to proceed, the keyboard must be set into unlocked mode.\n":

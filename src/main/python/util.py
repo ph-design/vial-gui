@@ -202,11 +202,11 @@ class KeycodeDisplay:
         widget.setMaskText(mask_text)
         widget.setToolTip(tooltip)
         if cls.code_is_overriden(code):
-            widget.setColor(QApplication.palette().color(QPalette.Link))
+            widget.setColor(QApplication.palette().color(QPalette.ColorRole.Link))
         else:
             widget.setColor(None)
         if inner and mask and cls.code_is_overriden(inner.qmk_id):
-            widget.setMaskColor(QApplication.palette().color(QPalette.Link))
+            widget.setMaskColor(QApplication.palette().color(QPalette.ColorRole.Link))
         else:
             widget.setMaskColor(None)
 
@@ -231,8 +231,15 @@ class KeycodeDisplay:
             qmk_id = widget.keycode.qmk_id
             if qmk_id in KeycodeDisplay.keymap_override:
                 label = KeycodeDisplay.keymap_override[qmk_id]
-                highlight_color = QApplication.palette().color(QPalette.Link).getRgb()
-                widget.setStyleSheet("QPushButton {color: rgb%s;}" % str(highlight_color))
+                # Use hex color (no alpha) to avoid QCssParser warnings about invalid rgb/alpha syntax
+                col = QApplication.palette().color(QPalette.ColorRole.Link)
+                try:
+                    hex_color = col.name()  # returns '#RRGGBB'
+                except Exception:
+                    # fallback to rgb tuple if name() not available
+                    rgb = col.getRgb()[:3]
+                    hex_color = '#%02x%02x%02x' % rgb
+                widget.setStyleSheet(f"QPushButton {{ color: {hex_color}; }}")
             else:
                 label = widget.keycode.label
                 widget.setStyleSheet("QPushButton {}")

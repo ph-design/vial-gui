@@ -77,17 +77,33 @@ class Theme:
     theme = ""
     # 缓存当前主题的颜色
     _colors = {}
+    _applied_theme = None
 
     @classmethod
     def set_theme(cls, theme):
         cls.theme = theme
         cls._colors = {}  # 清空颜色缓存
-        if theme in palettes:
-            QApplication.setPalette(palettes[theme])
+        cls._applied_theme = None
+        applied = theme
+        if theme not in palettes:
+            # treat special name "System" (or unknown) as following system palette
+            try:
+                pal = QApplication.palette()
+                bg = pal.color(QPalette.ColorRole.Window)
+                r, g, b = bg.red(), bg.green(), bg.blue()
+                lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+                applied = "Phantom-dark" if lum < 128 else "Photon-light"
+            except Exception:
+                # fallback to dark theme if we can't inspect palette
+                applied = "Phantom-dark"
+
+        if applied in palettes:
+            QApplication.setPalette(palettes[applied])
             QApplication.setStyle("Fusion")
-            # 缓存颜色便于访问
+            cls._applied_theme = applied
+            # cache colors for the applied theme
             for name, colors in themes:
-                if name == theme:
+                if name == applied:
                     for role, color in colors.items():
                         if not isinstance(role, (tuple, list)):
                             cls._colors[role] = color
@@ -104,8 +120,29 @@ class Theme:
     
     @classmethod
     def is_dark_theme(cls):
-        """判断是否为深色主题"""
-        return not cls.is_light_theme()
+        """判断是否为深色主题。
+
+        优先基于已知主题名称判断；如果主题是系统/自动或未知，则基于当前 QApplication 调色板的窗口背景色亮度来决定，
+        以便在“自动/系统”主题环境下也能正确选择深/浅分支。
+        """
+        # explicit known light themes
+        if cls.theme in ("Photon-light", "Light"):
+            return False
+        # explicit known dark themes
+        if cls.theme in ("Phantom-dark", "Dark"):
+            return True
+
+        # Fallback: inspect the application's palette window background luminance
+        try:
+            pal = QApplication.palette()
+            bg = pal.color(QPalette.ColorRole.Window)
+            r, g, b = bg.red(), bg.green(), bg.blue()
+            # Perceived luminance (ITU-R BT.709)
+            lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+            return lum < 128
+        except Exception:
+            # conservative default to dark theme
+            return True
 
     @classmethod
     def get_color(cls, role):

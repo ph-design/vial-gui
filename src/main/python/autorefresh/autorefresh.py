@@ -1,6 +1,8 @@
 import sys
 
 from PyQt6.QtCore import QObject, pyqtSignal
+import threading
+import logging
 
 
 class AutorefreshLocker:
@@ -19,6 +21,8 @@ class Autorefresh(QObject):
 
     instance = None
     devices_updated = pyqtSignal(object, bool)
+    # Emitted when a device has been opened asynchronously (device instance or None)
+    device_opened = pyqtSignal(object)
 
     def __init__(self):
         super().__init__()
@@ -78,6 +82,48 @@ class Autorefresh(QObject):
             else:
                 self.current_device.open(None)
         self.thread.set_device(self.current_device)
+
+    def select_device_async(self, idx):
+        """Select device by index but open it asynchronously to avoid blocking UI."""
+        if self.current_device is not None:
+            try:
+                self.current_device.close()
+            except Exception:
+                logging.exception("Error closing current device")
+        self.current_device = None
+        if idx < 0:
+            # clear device in thread
+            self.thread.set_device(None)
+            self.device_opened.emit(None)
+            return
+
+        if idx >= len(self.devices):
+            self.device_opened.emit(None)
+            return
+
+        dev = self.devices[idx]
+        self.current_device = dev
+
+        def _open_worker(d):
+            try:
+                if d.sideload:
+                    d.open(self.thread.sideload_json)
+                elif d.via_stack:
+                    d.open(self.thread.via_stack_json["definitions"][d.via_id])
+                else:
+                    d.open(None)
+                # let autorefresh thread know about current device
+                self.thread.set_device(d)
+                # notify listeners on the main thread
+                self.device_opened.emit(d)
+            except Exception:
+                logging.exception("Failed to open device asynchronously")
+                # still set device in thread as None
+                self.thread.set_device(None)
+                self.device_opened.emit(None)
+
+        t = threading.Thread(target=_open_worker, args=(dev,), daemon=True)
+        t.start()
 
     def on_devices_updated(self, devices, changed):
         self.devices = devices

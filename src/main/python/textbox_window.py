@@ -87,7 +87,7 @@ class TextboxWindow(QDialog):
         dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
         dialog.setNameFilters(["{} (*.{})".format(self.file_type, self.file_extension)])
 
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             with open(dialog.selectedFiles()[0], "wb") as outf:
                 outf.write(self.macrotext.toPlainText().encode(self.encoding))
 
@@ -97,7 +97,7 @@ class TextboxWindow(QDialog):
         dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
         dialog.setNameFilters(["{} (*.{})".format(self.file_type, self.file_extension)])
 
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             with open(dialog.selectedFiles()[0], "rb") as inf:
                 self.macrotext.setPlainText(inf.read().decode(self.encoding))
 
