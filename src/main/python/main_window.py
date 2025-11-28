@@ -32,6 +32,7 @@ from unlocker import Unlocker
 from util import tr, EXAMPLE_KEYBOARDS, KeycodeDisplay, EXAMPLE_KEYBOARD_PREFIX
 from vial_device import VialKeyboard
 from editor.matrix_test import MatrixTest
+from i18n import I18n
 
 import themes
 
@@ -236,6 +237,18 @@ class MainWindow(QMainWindow):
             if theme_group.checkedAction() is None:
                 theme_group.actions()[0].setChecked(True)
 
+            # Language menu
+            self.language_menu = self.menuBar().addMenu(tr("Menu", "Language"))
+            self.language_group = QActionGroup(self)
+            current_lang = I18n.get_language()
+            for lang_code, lang_name in I18n.LANGUAGES.items():
+                act = QAction(lang_name, self)
+                act.triggered.connect(lambda x, code=lang_code: self.set_language(code))
+                act.setCheckable(True)
+                act.setChecked(current_lang == lang_code)
+                self.language_group.addAction(act)
+                self.language_menu.addAction(act)
+
         about_vial_act = QAction(tr("MenuAbout", "About Vial..."), self)
         about_vial_act.triggered.connect(self.about_vial)
         self.about_keyboard_act = QAction("", self)
@@ -424,6 +437,12 @@ class MainWindow(QMainWindow):
         self.settings.setValue("theme", theme)
         msg = QMessageBox()
         msg.setText(tr("MainWindow", "In order to fully apply the theme you should restart the application."))
+        msg.exec()
+
+    def set_language(self, lang_code):
+        I18n.set_language(lang_code)
+        msg = QMessageBox()
+        msg.setText(tr("MainWindow", "In order to fully apply the language you should restart the application."))
         msg.exec()
 
     def on_tab_changed(self, index):

@@ -98,6 +98,11 @@ if __name__ == '__main__':
     else:
         appctxt = LocalAppCtx()
         init_logger()
+        
+        # Load language settings before creating the main window
+        from i18n import I18n
+        I18n.load_language()
+        
         app = appctxt.app
         qt_exception_hook = UncaughtHook()
         window = MainWindow(appctxt)

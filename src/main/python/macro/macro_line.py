@@ -5,24 +5,31 @@ from PyQt6.QtWidgets import QHBoxLayout, QToolButton, QComboBox
 
 from macro.macro_action_ui import ActionTextUI, ActionDownUI, ActionUpUI, ActionTapUI, ActionDelayUI
 from protocol.constants import VIAL_PROTOCOL_ADVANCED_MACROS
+from util import tr
 
 
 class MacroLine(QObject):
 
     changed = pyqtSignal()
 
-    types = ["Text", "Down", "Up", "Tap"]
     type_to_cls = [ActionTextUI, ActionDownUI, ActionUpUI, ActionTapUI]
+
+    @classmethod
+    def get_types(cls):
+        return [tr("MacroLine", "Text"), tr("MacroLine", "Down"), tr("MacroLine", "Up"), tr("MacroLine", "Tap")]
 
     def __init__(self, parent, action):
         super().__init__()
 
         self.parent = parent
         self.container = parent.container
+        
+        self.types = self.get_types()
+        self.local_type_to_cls = self.type_to_cls[:]
 
         if self.parent.parent.keyboard.vial_protocol >= VIAL_PROTOCOL_ADVANCED_MACROS:
-            self.types = self.types[:] + ["Delay (ms)"]
-            self.type_to_cls = self.type_to_cls[:] + [ActionDelayUI]
+            self.types = self.types + [tr("MacroLine", "Delay (ms)")]
+            self.local_type_to_cls = self.local_type_to_cls + [ActionDelayUI]
 
         self.arrows = QHBoxLayout()
         self.btn_up = QToolButton()
@@ -39,7 +46,7 @@ class MacroLine(QObject):
 
         self.select_type = QComboBox()
         self.select_type.addItems(self.types)
-        self.select_type.setCurrentIndex(self.type_to_cls.index(type(action)))
+        self.select_type.setCurrentIndex(self.local_type_to_cls.index(type(action)))
         self.select_type.currentIndexChanged.connect(self.on_change_type)
 
         self.action = action
@@ -75,7 +82,7 @@ class MacroLine(QObject):
     def on_change_type(self):
         self.action.remove()
         self.action.delete()
-        self.action = self.type_to_cls[self.select_type.currentIndex()](self.container)
+        self.action = self.local_type_to_cls[self.select_type.currentIndex()](self.container)
         self.action.changed.connect(self.on_change)
         self.action.insert(self.row)
         self.changed.emit()

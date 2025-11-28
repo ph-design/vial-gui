@@ -22,13 +22,13 @@ class MatrixTest(BasicEditor):
         self.keyboardWidget = KeyboardWidget(layout_editor)
         self.keyboardWidget.set_enabled(False)
 
-        self.unlock_btn = QPushButton("Unlock")
+        self.unlock_btn = QPushButton(tr("MatrixTest", "Unlock"))
         self.unlock_btn.setMinimumSize(120, 40)
         unlock_font = self.unlock_btn.font()
         unlock_font.setPointSize(11)
         self.unlock_btn.setFont(unlock_font)
         
-        self.reset_btn = QPushButton("Reset")
+        self.reset_btn = QPushButton(tr("MatrixTest", "Reset"))
         self.reset_btn.setMinimumSize(120, 40)
         reset_font = self.reset_btn.font()
         reset_font.setPointSize(11)

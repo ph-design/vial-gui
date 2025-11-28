@@ -6,7 +6,7 @@ import sys
 import time
 from logging.handlers import RotatingFileHandler
 
-from PyQt6.QtCore import QCoreApplication, QStandardPaths
+from PyQt6.QtCore import QStandardPaths
 from PyQt6.QtGui import QPalette
 from PyQt6.QtWidgets import QApplication, QWidget, QScrollArea, QFrame
 
@@ -14,7 +14,8 @@ from hidproxy import hid
 from keycodes.keycodes import Keycode
 from keymaps import KEYMAPS
 
-tr = QCoreApplication.translate
+# Import tr from i18n module for internationalization support
+from i18n import tr
 
 # For Vial keyboard
 VIAL_SERIAL_NUMBER_MAGIC = "vial:f64c2b3c"

@@ -158,10 +158,10 @@ class FirmwareFlasher(BasicEditor):
             return
 
         if isinstance(self.device, VialBootloader):
-            self.log("Valid Vial Bootloader device at {}".format(self.device.desc["path"].decode("utf-8")))
+            self.log(tr("Flasher", "Valid Vial Bootloader device at {}").format(self.device.desc["path"].decode("utf-8")))
             self.chk_restore_keymap.hide()
         elif isinstance(self.device, VialKeyboard):
-            self.log("Vial keyboard detected")
+            self.log(tr("Flasher", "Vial keyboard detected"))
             self.chk_restore_keymap.show()
 
     def valid(self):
@@ -184,21 +184,21 @@ class FirmwareFlasher(BasicEditor):
         if dialog.exec() == QDialog.Accepted:
             self.selected_firmware_path = dialog.selectedFiles()[0]
             self.txt_file_selector.setText(self.selected_firmware_path)
-            self.log("Firmware update package: {}".format(self.selected_firmware_path))
+            self.log(tr("Flasher", "Firmware update package: {}").format(self.selected_firmware_path))
 
     def on_click_flash(self):
         if not self.selected_firmware_path:
-            self.log("Error: Please select a firmware update package")
+            self.log(tr("Flasher", "Error: Please select a firmware update package"))
             return
 
         with open(self.selected_firmware_path, "rb") as inf:
             firmware = inf.read()
 
         if len(firmware) > 10 * 1024 * 1024:
-            self.log("Error: Firmware is too large. Check you've selected the correct file")
+            self.log(tr("Flasher", "Error: Firmware is too large. Check you've selected the correct file"))
             return
 
-        self.log("Preparing to flash...")
+        self.log(tr("Flasher", "Preparing to flash..."))
         self.lock_ui()
 
         self.layout_restore = self.uid_restore = None
@@ -206,31 +206,31 @@ class FirmwareFlasher(BasicEditor):
         if isinstance(self.device, VialKeyboard):
             # back up current layout
             if self.chk_restore_keymap.isChecked():
-                self.log("Backing up current layout...")
+                self.log(tr("Flasher", "Backing up current layout..."))
                 self.layout_restore = self.device.keyboard.save_layout()
 
             # keep track of which keyboard we should restore saved layout to
             self.uid_restore = self.device.keyboard.get_uid()
             firmware_uid = firmware[8:16]
             if self.uid_restore != firmware_uid:
-                self.log("Error: Firmware UID does not match keyboard UID. Check that you have the correct file")
+                self.log(tr("Flasher", "Error: Firmware UID does not match keyboard UID. Check that you have the correct file"))
                 self.unlock_ui(False)
                 return
 
             Unlocker.unlock(self.device.keyboard)
 
-            self.log("Restarting in bootloader mode...")
+            self.log(tr("Flasher", "Restarting in bootloader mode..."))
             self.device.keyboard.reset()
 
             # watch for bootloaders to appear and ask them for their UID, return one that matches the keyboard
             found = None
             while found is None:
-                self.log("Looking for devices...")
+                self.log(tr("Flasher", "Looking for devices..."))
                 QCoreApplication.processEvents()
                 time.sleep(1)
                 found = self.find_device_with_uid(VialBootloader, self.uid_restore)
 
-            self.log("Found Vial Bootloader device at {}".format(found.desc["path"].decode("utf-8")))
+            self.log(tr("Flasher", "Found Vial Bootloader device at {}").format(found.desc["path"].decode("utf-8")))
             found.open()
             self.device = found
 
@@ -264,20 +264,20 @@ class FirmwareFlasher(BasicEditor):
         if self.layout_restore:
             found = None
             while found is None:
-                self.log("Looking for devices...")
+                self.log(tr("Flasher", "Looking for devices..."))
                 QCoreApplication.processEvents()
                 time.sleep(1)
                 found = self.find_device_with_uid(VialKeyboard, self.uid_restore)
 
-            self.log("Found Vial keyboard at {}".format(found.desc["path"].decode("utf-8")))
+            self.log(tr("Flasher", "Found Vial keyboard at {}").format(found.desc["path"].decode("utf-8")))
             found.open()
             self.device = found
-            self.log("Restoring saved layout...")
+            self.log(tr("Flasher", "Restoring saved layout..."))
             QCoreApplication.processEvents()
             found.keyboard.restore_layout(self.layout_restore)
             found.keyboard.lock()
             found.close()
-            self.log("Done!")
+            self.log(tr("Flasher", "Done!"))
 
         self.unlock_ui()
 
