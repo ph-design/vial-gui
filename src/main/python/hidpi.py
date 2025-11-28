@@ -134,5 +134,28 @@ class HiDPIInit:
 
 def setup_hidpi():
     """Setup HiDPI support. PyQt6 handles HiDPI automatically."""
-    # PyQt6 automatically enables HiDPI scaling
-    pass
+    # Ensure Qt high-DPI attributes are set before creating QApplication
+    try:
+        import os
+        from PyQt6.QtCore import Qt
+        from PyQt6.QtWidgets import QApplication
+        from PyQt6.QtGui import QFont
+
+        # Environment hints for Qt
+        os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "1")
+        os.environ.setdefault("QT_AUTO_SCREEN_SCALE_FACTOR", "1")
+
+        # Set application attributes to improve DPI handling and pixmap scaling
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+
+        # Improve font rendering by preferring antialiasing where available
+        try:
+            font = QApplication.font()
+            font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
+            QApplication.setFont(font)
+        except Exception:
+            pass
+    except Exception:
+        # If PyQt6 isn't available yet (e.g., during static analysis), ignore
+        return

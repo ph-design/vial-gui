@@ -42,10 +42,27 @@ class LocalAppCtx:
         return self._app
 
     def get_resource(self, name):
-        # map resource requests to src/main/resources/base/<name>
+        # map resource requests to one of several locations so it works
+        # both in development and in various frozen layouts (Nuitka).
         root = Path(__file__).resolve().parents[1]
-        res = root / 'resources' / 'base' / name
-        return str(res)
+
+        candidates = [
+            root / 'resources' / 'base' / name,
+            root / 'main.dist' / 'resources' / 'base' / name,
+            root.parent / 'resources' / 'base' / name,
+            root.parent / 'main.dist' / 'resources' / 'base' / name,
+            Path.cwd() / 'resources' / 'base' / name,
+        ]
+
+        for p in candidates:
+            try:
+                if p.exists():
+                    return str(p)
+            except Exception:
+                continue
+
+        # fallback to the original expected location
+        return str(root / 'resources' / 'base' / name)
 
 import sys
 
@@ -104,6 +121,38 @@ if __name__ == '__main__':
         I18n.load_language()
         
         app = appctxt.app
+        # Try to set application/window icon. Prefer the running exe's embedded
+        # icon when this is a bundled executable; otherwise fall back to project
+        # icon files. Using the exe icon ensures taskbar and explorer show the
+        # embedded icon correctly.
+        try:
+            from PyQt6.QtGui import QIcon
+            exe_path = None
+            try:
+                exe_path = Path(sys.argv[0])
+            except Exception:
+                exe_path = None
+
+            # If running as bundled exe, use the exe file itself as icon source
+            if exe_path and exe_path.suffix.lower() == '.exe' and exe_path.exists():
+                appctxt.app.setWindowIcon(QIcon(str(exe_path)))
+            else:
+                # When running from source, main.py is located at src/main/python/
+                # so use the 'src/main' directory as the base for icons.
+                root = Path(__file__).resolve().parents[1]
+                icon_candidates = [
+                    root / 'icons' / 'Icon.ico',
+                    root / 'icons' / 'base' / 'vial.ico',
+                ]
+                for p in icon_candidates:
+                    try:
+                        if p.exists():
+                            appctxt.app.setWindowIcon(QIcon(str(p)))
+                            break
+                    except Exception:
+                        continue
+        except Exception:
+            pass
         qt_exception_hook = UncaughtHook()
         window = MainWindow(appctxt)
         window.show()
