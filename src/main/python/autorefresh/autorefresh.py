@@ -1,6 +1,7 @@
 import sys
 
 from PyQt6.QtCore import QObject, pyqtSignal
+from protocol.keyboard_comm import ProtocolError
 import threading
 import logging
 
@@ -23,6 +24,8 @@ class Autorefresh(QObject):
     devices_updated = pyqtSignal(object, bool)
     # Emitted when a device has been opened asynchronously (device instance or None)
     device_opened = pyqtSignal(object)
+    # Emitted when an error occurs during async device open (payload: error code or message)
+    device_error = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -117,7 +120,15 @@ class Autorefresh(QObject):
                 # notify listeners on the main thread
                 self.device_opened.emit(d)
             except Exception:
-                logging.exception("Failed to open device asynchronously")
+                import traceback
+                tb = traceback.format_exc()
+                logging.exception("Failed to open device asynchronously: %s", tb)
+                # If this is a protocol/version error, notify UI so it can show a friendly message
+                try:
+                    if isinstance(sys.exc_info()[1], ProtocolError):
+                        self.device_error.emit("protocol_error")
+                except Exception:
+                    pass
                 # still set device in thread as None
                 self.thread.set_device(None)
                 self.device_opened.emit(None)

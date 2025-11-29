@@ -2,7 +2,7 @@
 import time
 
 from hidproxy import hid
-from protocol.keyboard_comm import Keyboard
+from protocol.keyboard_comm import Keyboard, ProtocolError
 from protocol.dummy_keyboard import DummyKeyboard
 from util import MSG_LEN, pad_for_vibl
 
@@ -47,8 +47,24 @@ class VialKeyboard(VialDevice):
 
     def open(self, override_json=None):
         super().open(override_json)
-        self.keyboard = Keyboard(self.dev)
-        self.keyboard.reload(override_json)
+        try:
+            self.keyboard = Keyboard(self.dev)
+            self.keyboard.reload(override_json)
+        except ProtocolError:
+            # Unsupported protocol/version on this interface; close handle and
+            # propagate exception so caller can handle it gracefully.
+            try:
+                self.dev.close()
+            except Exception:
+                pass
+            raise
+        except Exception:
+            # Ensure device handle is closed on any other error during open
+            try:
+                self.dev.close()
+            except Exception:
+                pass
+            raise
 
     def title(self):
         s = "{} {}".format(self.desc["manufacturer_string"], self.desc["product_string"]).strip()

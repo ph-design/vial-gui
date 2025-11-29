@@ -4,7 +4,7 @@ import platform
 from json import JSONDecodeError
 
 from PyQt6.QtCore import Qt, QSettings, QStandardPaths, QTimer, QRect, QT_VERSION_STR
-from PyQt6.QtGui import QAction, QActionGroup, QMovie
+from PyQt6.QtGui import QAction, QActionGroup, QMovie, QFont
 from PyQt6.QtWidgets import QWidget, QComboBox, QToolButton, QHBoxLayout, QVBoxLayout, QMainWindow, QApplication, \
     QFileDialog, QDialog, QTabWidget, QMessageBox, QLabel, QProgressBar
 
@@ -144,6 +144,20 @@ class MainWindow(QMainWindow):
         themes.Theme.set_theme(self.get_theme())
 
         self.combobox_devices = QComboBox()
+        # enlarge font and height for top device selector to improve readability
+        try:
+            f = QFont()
+            f.setPointSize(13)
+            self.combobox_devices.setFont(f)
+            self.combobox_devices.setMinimumHeight(32)
+            # also style the popup view items explicitly
+            try:
+                view = self.combobox_devices.view()
+                view.setStyleSheet('QListView{font-size:13px; min-height:28px;} QListView::item{min-height:28px; padding:6px 8px;}')
+            except Exception:
+                pass
+        except Exception:
+            pass
         self.combobox_devices.currentIndexChanged.connect(self.on_device_selected)
 
         self.btn_refresh_devices = QToolButton()
@@ -259,6 +273,9 @@ class MainWindow(QMainWindow):
         try:
             self.autorefresh = Autorefresh()
             self.autorefresh.devices_updated.connect(self.on_devices_updated)
+            # handle asynchronous device opens
+            if hasattr(self.autorefresh, 'device_error'):
+                self.autorefresh.device_error.connect(self.on_device_error)
             # handle asynchronous device opens
             if hasattr(self.autorefresh, 'device_opened'):
                 self.autorefresh.device_opened.connect(self.on_device_opened)
@@ -505,6 +522,15 @@ class MainWindow(QMainWindow):
             except Exception:
                 pass
 
+    def on_device_error(self, code):
+        try:
+            if code == "protocol_error":
+                from PyQt6.QtWidgets import QMessageBox
+                QMessageBox.warning(self, tr("MainWindow", "Protocol error"),
+                                    tr("MainWindow", "Unsupported keyboard protocol detected. Please confirm the keyboard runs official Vial firmware or replug the device."))
+        except Exception:
+            pass
+
     def rebuild(self):
         # don't show "Security" menu for bootloader mode, as the bootloader is inherently insecure
         self.security_menu.menuAction().setVisible(isinstance(self.autorefresh.current_device, VialKeyboard))
@@ -720,6 +746,32 @@ class MainWindow(QMainWindow):
         # (avoid per-widget setStyleSheet calls which are expensive)
         
         stylesheet = f"""
+        /* Base font and control size adjustments to improve readability */
+        QWidget {{
+            font-size: 13px;
+        }}
+        QComboBox {{
+            min-height: 28px;
+            font-size: 13px;
+        }}
+        QToolButton {{
+            font-size: 13px;
+            min-height: 28px;
+        }}
+        QPushButton {{
+            font-size: 13px;
+        }}
+
+        /* Make the dropdown list items larger and more touch-friendly */
+        QComboBox QAbstractItemView {{
+            font-size: 13px;
+            min-height: 28px;
+        }}
+        QListView::item {{
+            min-height: 28px;
+            padding: 6px 8px;
+        }}
+
         QMainWindow {{
             background-color: {window_bg};
         }}

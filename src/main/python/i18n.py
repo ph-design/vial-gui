@@ -101,10 +101,18 @@ class I18n:
             # Unlocker
             "In order to proceed, the keyboard must be set into unlocked mode.\n":
                 "要继续操作，必须将键盘设置为解锁模式。\n",
+            "In order to proceed, the keyboard must be set into unlocked mode.\nYou should only perform this operation on computers that you trust.":
+                "要继续操作，必须将键盘设置为解锁模式。请仅在您信任的计算机上执行此操作。",
             "To exit this mode, you will need to replug the keyboard\n":
                 "要退出此模式，您需要重新插拔键盘\n",
+            "To exit this mode, you will need to replug the keyboard\nor select Security->Lock from the menu.":
+                "要退出此模式，您需要重新插拔键盘，或从菜单中选择“安全”->“锁定”。",
             "Press and hold the following keys until the progress bar ":
                 "按住以下按键直到进度条",
+            "Press and hold the following keys until the progress bar below fills up:":
+                "按住以下按键，直到下面的进度条填满：",
+            "Device disconnected. The dialog will close.":
+                "设备已断开，对话框将关闭。",
             
             # TextboxWindow
             "Apply": "应用",
@@ -398,6 +406,10 @@ class I18n:
             # Error messages
             "Unsupported protocol version!": "不支持的协议版本！",
             "Please download latest Vial from https://get.vial.today/": "请从 https://get.vial.today/ 下载最新版 Vial",
+            # Protocol error message
+            "Protocol error": "协议错误",
+            "Unsupported keyboard protocol detected. Please confirm the keyboard runs official Vial firmware or replug the device.":
+                "检测到不受支持的键盘协议。请确认键盘运行的是官方 Vial 固件，或重新插入键盘。",
             "An example keyboard UID was detected.": "检测到示例键盘 UID。",
             "Please change your keyboard UID to be unique before you ship!": "请在发货前将键盘 UID 更改为唯一值！",
         },
